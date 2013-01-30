@@ -43,6 +43,7 @@ The following is a list of notable Go implementations of APNS:
 - [nicolaspaton/goapn](https://github.com/nicolaspaton/goapn)
 - [mugenken/apnsender](https://github.com/mugenken/apnsender)
 - [virushuo/Go-Apns](https://github.com/virushuo/Go-Apns)
+- [uniqush/uniqush-push](https://github.com/uniqush/uniqush-push)
 
 Some non-Go APNS projects:
 
@@ -64,3 +65,4 @@ Further Reading
 - [Optimizing Connections to the Apple Push Notification Service. Apple.](https://developer.apple.com/news/index.php?id=03212012a)
 - [Nagle's algorithm](http://en.wikipedia.org/wiki/Nagle's_algorithm)
 - [RFC 896 - Congestion Control in IP/TCP Internetworks. IETF.](http://tools.ietf.org/html/rfc896)
+- [Socket-level Programming. Network programming with Go.](http://jan.newmarch.name/go/socket/chapter-socket.html)

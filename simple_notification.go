@@ -10,7 +10,14 @@ import (
 	"io"
 )
 
-const SimpleNotificationCMD = 0
+const (
+	// The first byte in the simple format is a command value of 0 (zero).
+	SimpleNotificationCMD = 0
+
+	// From the Local and Push Notification Programming Guide:
+	// The payload must not exceed 256 bytes and must not be null-terminated.
+	MaxSimplePayloadSize uint16 = 256
+)
 
 // APNS simple notification protocol data.
 type SimpleNotification struct {
@@ -23,18 +30,12 @@ type SimpleNotification struct {
 
 // NewSimpleNotification creates a new push notification using the simple 
 // notification format. 
-func NewSimpleNotification(token, payload []byte) *SimpleNotification {
-	return &SimpleNotification{
-		Command:       SimpleNotificationCMD,
-		TokenLength:   uint16(len(token)),
-		DeviceToken:   token,
-		PayloadLength: uint16(len(payload)),
-		Payload:       payload,
-	}
+func NewSimpleNotification() *SimpleNotification {
+	return &SimpleNotification{Command: SimpleNotificationCMD}
 }
 
-// Write implements the io.Write interface to write the notification data. 
-func (sn *SimpleNotification) Write(w io.Writer) error {
+// WriteTo implements the io.Write interface to write the notification data. 
+func (sn *SimpleNotification) WriteTo(w io.Writer) error {
 	// From the Local and Push Notification Programming Guide:
 	// The lengths of the device token and the payload must be in network order 
 	// (that is, big endian).
@@ -43,6 +44,65 @@ func (sn *SimpleNotification) Write(w io.Writer) error {
 	binary.Write(w, binary.BigEndian, sn.DeviceToken)
 	binary.Write(w, binary.BigEndian, sn.PayloadLength)
 	binary.Write(w, binary.BigEndian, sn.Payload)
+	return nil
+}
+
+func (sn *SimpleNotification) ReadFrom(r io.Reader) error {
+	// Read the toke length
+	err := binary.Read(r, binary.BigEndian, &(sn.TokenLength))
+	if err != nil {
+		return fmt.Errorf("Error reading token length from input.\n%s", err)
+	}
+
+	// Read the device token
+	sn.DeviceToken = make([]byte, sn.TokenLength)
+	_, err = r.Read(sn.DeviceToken)
+	if err != nil {
+		return fmt.Errorf("Error reading device token from input.\n%s", err)
+	}
+
+	// Read the payload length
+	err = binary.Read(r, binary.BigEndian, &(sn.PayloadLength))
+	if err != nil {
+		return fmt.Errorf("Error reading payload length from input.\n%s", err)
+	}
+
+	// Read the device token
+	sn.Payload = make([]byte, sn.PayloadLength)
+	_, err = r.Read(sn.Payload)
+	if err != nil {
+		return fmt.Errorf("Error reading payload data from input.\n%s", err)
+	}
+
+	return nil
+}
+
+func (sn *SimpleNotification) String() string {
+	return fmt.Sprintf("Simple Notification: [\n\tcommand=%v\n\ttoken_length=%v\n\ttoken=%x\n\tpayload_length=%v\n\tpayload=%s\n]",
+		sn.Command, sn.TokenLength, sn.DeviceToken, sn.PayloadLength, sn.Payload)
+}
+
+func (sn *SimpleNotification) GetToken() []byte {
+	return sn.DeviceToken
+}
+
+func (sn *SimpleNotification) GetPayload() []byte {
+	return sn.Payload
+}
+
+func (sn *SimpleNotification) GetCommand() int {
+	return SimpleNotificationCMD
+}
+
+func (sn *SimpleNotification) SetPayload(p []byte) error {
+	sn.PayloadLength = uint16(len(p))
+	sn.Payload = p
+	return nil
+}
+
+func (sn *SimpleNotification) SetToken(t []byte) error {
+	sn.TokenLength = uint16(len(t))
+	sn.DeviceToken = t
 	return nil
 }
 
@@ -58,7 +118,7 @@ func (apn *SimpleNotification) Validate() error {
 		return fmt.Errorf("Token length %d does not match actal device token length %d.\n", apn.TokenLength, len(apn.DeviceToken))
 	case apn.PayloadLength != uint16(len(apn.Payload)):
 		return fmt.Errorf("Payload length %d does not match actual payload length %d.\n", apn.PayloadLength, len(apn.Payload))
-	case apn.PayloadLength > MaxPayloadSize:
+	case apn.PayloadLength > MaxSimplePayloadSize:
 		return fmt.Errorf("Payload too large: %d", apn.PayloadLength)
 	}
 	return nil

@@ -5,27 +5,51 @@
 package apns
 
 import (
+	"fmt"
 	"io"
+	"net"
 )
 
-// From the Local and Push Notification Programming Guide:
-// The payload must not exceed 256 bytes and must not be null-terminated.
-const MaxPayloadSize uint16 = 256
-
-// Notification provides a uniform way of handling a notification after it has 
-// already been created. 
+// Notification represents push notifications that may be sent to APNs. 
 type Notification interface {
-	Write(w io.Writer) error
+	GetCommand() int
+	GetPayload() []byte
+	GetToken() []byte
+	SetPayload(p []byte) error
+	SetToken(t []byte) error
 	Validate() error
+	WriteTo(w io.Writer) error
+}
+
+// APNData represents the various data formats that may be encountered when 
+// communicating with APNs.
+type APNData interface {
+	ReadFrom(r io.Reader) error
+	String() string
+	Validate() error
+	WriteTo(w io.Writer) error
 }
 
 // Send will deliver a notification by writing its data to a tcp connection. A 
-// secure connection to APNS may be established by creating a PushConnection.
-// This function is typed such that a Notification cannot accidentally be sent 
-// over a FeedbackConnection.
-func Send(conn *PushConnection, apn Notification) error {
-	if err := apn.Validate(); err != nil {
-		return err
+// secure connection to APNS may be established by using the DialXXX(...) 
+// functions.
+func Send(conn net.Conn, apn Notification) error {
+	// if err := apn.Validate(); err != nil {
+	// 	return err
+	// }
+	return apn.WriteTo(conn)
+}
+
+// ResolveCommand will return the corresponding data format for the command ID.
+// If no corresponding data is found an error is returned instead.
+func ResolveCommand(cmd uint8) (APNData, error) {
+	switch cmd {
+	case SimpleNotificationCMD:
+		return NewSimpleNotification(), nil
+	case EnhancedNotificationCMD:
+		return NewEnhancedNotification(), nil
+	case ErrorResponseCMD:
+		return NewErrorResponse(), nil
 	}
-	return apn.Write(conn)
+	return nil, fmt.Errorf("Unknown command: %d", cmd)
 }

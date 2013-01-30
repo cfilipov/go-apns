@@ -6,18 +6,8 @@ package apns
 
 import (
 	"crypto/tls"
-	"io"
 	"net"
-	"time"
 )
-
-// Connection wraps a TCP connection to APNS servers. Connection implements 
-// net.Conn so that anything that understands the APNS binary interface may use 
-// this connection by writing to it.
-type Connection struct {
-	tcpconn *net.TCPConn
-	tlsconn *tls.Conn
-}
 
 var pushHosts = [2]string{
 	"gateway.push.apple.com:2195",
@@ -29,61 +19,28 @@ var feedbackHosts = [2]string{
 	"feedback.sandbox.push.apple.com:2196",
 }
 
-// Ensure that Connection implements io.Writer
-var _ io.Writer = &Connection{}
-
-// Ensure that Connection implements io.Reader
-var _ io.Reader = &Connection{}
-
-// Ensure that Connection implements net.Conn
-var _ net.Conn = &Connection{}
-
 type Environment int8
 
-// Connections can be made to either sandbox or distribution (production) 
-// environments. The Connection will select the correct address based on this 
-// value.
 const (
 	DISTRIBUTION Environment = iota
 	SANDBOX      Environment = iota
 )
 
-// PushConnection provides a type-safe mechanism for making sure push 
-// notifications are only sent over push gateway Connections.
-type PushConnection struct {
-	Connection
+// DialAPNS will create a TCP connection to Apple's APNs server using the 
+// certificate provided. The delay parameter tells the network stack to use 
+// Nagle's algorithm to batch data in TCP packets.
+func DialAPNS(cer *tls.Certificate, env Environment, delay bool) (net.Conn, error) {
+	return Dial(cer, pushHosts[env], delay)
 }
 
-// FeedbackConnection provides a type-safe mechanism for making sure push 
-// notifications cannot be sent over feedback Connections.
-type FeedbackConnection struct {
-	Connection
+// DialFeedback will create a TCP connection to Apple's feedback service.
+func DialFeedback(cer *tls.Certificate, env Environment) (net.Conn, error) {
+	return Dial(cer, feedbackHosts[env], false)
 }
 
-// Connect opens a secured connection to the push APNS gateway using the  
-// certificate and environment. The delay determines weather or not TCP packets
-// should be batched using Nagle's algorithm.
-func Connect(cer *tls.Certificate, env Environment, delay bool) (*PushConnection, error) {
-	conn, err := connect(cer, pushHosts[env])
-	if err != nil {
-		return nil, err
-	}
-	// From the Local and Push Notification Programming Guide:
-	// For optimum performance, you should batch multiple notifications in a 
-	// single transmission over the interface, either explicitly or using a 
-	// TCP/IP Nagle algorithm.
-	conn.tcpconn.SetNoDelay(!delay)
-	return &PushConnection{*conn}, nil
-}
-
-// Open a secured connection to the APNS feedback server.
-func ConnectFeedback(cer *tls.Certificate, env Environment) (*Connection, error) {
-	return connect(cer, feedbackHosts[env])
-}
-
-// Open a secured connection to an APNS server. 
-func connect(cer *tls.Certificate, gateway string) (*Connection, error) {
-	raddr, err := net.ResolveTCPAddr("tcp", gateway)
+// Dial will connect to an APNs server provided in the host parameter.
+func Dial(cer *tls.Certificate, host string, delay bool) (net.Conn, error) {
+	raddr, err := net.ResolveTCPAddr("tcp", host)
 	if err != nil {
 		return nil, err
 	}
@@ -95,11 +52,24 @@ func connect(cer *tls.Certificate, gateway string) (*Connection, error) {
 		return nil, err
 	}
 
+	// From the Local and Push Notification Programming Guide:
+	// For optimum performance, you should batch multiple notifications in a 
+	// single transmission over the interface, either explicitly or using a 
+	// TCP/IP Nagle's algorithm.
+	tcpconn.SetNoDelay(!delay)
+
+	// We should provide the option to connect without certificates for testing 
+	// (this is convenient when one wants to setup a dummy APNs server.)
+	if cer == nil {
+		return tcpconn, nil
+	}
+
+	// Process the x.509 certificate
 	conf := &tls.Config{
 		Certificates: []tls.Certificate{*cer},
 	}
 	tlsconn := tls.Client(tcpconn, conf)
-
+  
 	// From the Local and Push Notification Programming Guide:
 	// To establish a trusted provider identity, you should present this 
 	// certificate to APNs at connection time using peer-to-peer authentication
@@ -108,49 +78,5 @@ func connect(cer *tls.Certificate, gateway string) (*Connection, error) {
 		return nil, err
 	}
 
-	conn := &Connection{
-		tcpconn: tcpconn,
-		tlsconn: tlsconn,
-	}
-	return conn, nil
-}
-
-// Implement net.Conn and io.Read
-func (conn *Connection) Read(b []byte) (n int, err error) {
-	return conn.tlsconn.Read(b)
-}
-
-// Implement net.Conn and io.Writer
-func (conn *Connection) Write(b []byte) (n int, err error) {
-	return conn.tlsconn.Write(b)
-}
-
-// Implement net.Conn
-func (conn *Connection) Close() error {
-	return conn.tlsconn.Close()
-}
-
-// Implement net.Conn
-func (conn *Connection) LocalAddr() net.Addr {
-	return conn.tlsconn.LocalAddr()
-}
-
-// Implement net.Conn
-func (conn *Connection) RemoteAddr() net.Addr {
-	return conn.tlsconn.RemoteAddr()
-}
-
-// Implement net.Conn
-func (conn *Connection) SetDeadline(t time.Time) error {
-	return conn.tlsconn.SetDeadline(t)
-}
-
-// Implement net.Conn
-func (conn *Connection) SetReadDeadline(t time.Time) error {
-	return conn.tlsconn.SetReadDeadline(t)
-}
-
-// Implement net.Conn
-func (conn *Connection) SetWriteDeadline(t time.Time) error {
-	return conn.tlsconn.SetWriteDeadline(t)
+	return tlsconn, nil
 }
