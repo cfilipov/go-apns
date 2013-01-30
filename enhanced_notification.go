@@ -99,7 +99,7 @@ func (sn *EnhancedNotification) ReadFrom(r io.Reader) error {
 }
 
 func (sn *EnhancedNotification) String() string {
-	return fmt.Sprintf("Enhanced Notification: [\n\tcommand=%v\n\tidentifier=%v\n\texpiry=%v\n\ttoken_length=%v\n\ttoken=%x\n\tpayload_length=%v\n\tpayload=%s\n]",
+	return fmt.Sprintf("[Enhanced Notification][\n\tcommand=%v\n\tidentifier=%v\n\texpiry=%v\n\ttoken_length=%v\n\ttoken=%x\n\tpayload_length=%v\n\tpayload=%s\n]",
 		sn.Command, sn.Identifier, sn.Expiry, sn.TokenLength, sn.DeviceToken, sn.PayloadLength, sn.Payload)
 }
 

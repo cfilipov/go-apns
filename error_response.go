@@ -63,7 +63,7 @@ func (nerr *ErrorResponse) ReadFrom(r io.Reader) error {
 
 // String returns a string representation of an error response.
 func (nerr *ErrorResponse) String() string {
-	return fmt.Sprintf("Error Response: [\n\tcommand=%v\n\tstatus=%v (%s)\n\tidentifier=%v\n]",
+	return fmt.Sprintf("[Error Response][\n\tcommand=%v\n\tstatus=%v (%s)\n\tidentifier=%v\n]",
 		nerr.Command, nerr.Status, errorResponseCodes[nerr.Status], nerr.Identifier)
 }
 

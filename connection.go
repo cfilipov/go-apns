@@ -69,7 +69,7 @@ func Dial(cer *tls.Certificate, host string, delay bool) (net.Conn, error) {
 		Certificates: []tls.Certificate{*cer},
 	}
 	tlsconn := tls.Client(tcpconn, conf)
-  
+
 	// From the Local and Push Notification Programming Guide:
 	// To establish a trusted provider identity, you should present this 
 	// certificate to APNs at connection time using peer-to-peer authentication
