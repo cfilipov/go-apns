@@ -53,7 +53,7 @@ Other non-Go APNs projects:
 apnsend
 -------
 
-The apnsend utility is a command line tool which uses the apns package for 
+The [apnsend](https://github.com/cfilipov/go-apns/tree/master/apnsend) utility is a command line tool which uses the apns package for 
 sending push notifications.
 
 apnserver
