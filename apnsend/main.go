@@ -91,7 +91,7 @@ func init() {
 
 	apnOptions = &APNOptions{}
 	flag.IntVar(&apnOptions.expiry, "expiry", 0, "UNIX date in seconds (UTC) that identifies when the notification can be discarded")
-	flag.IntVar(&apnOptions.ttl, "ttl", 0, "Tim-to-live, in seconds. Signifies how long to wait before the notification can be discarded by APNs. Differs from --expiry in that --expiry requires an actual UNIX time stamp. If both flags are provided, expiry takes precedence.")
+	flag.IntVar(&apnOptions.ttl, "ttl", 0, "Time-to-live, in seconds. Signifies how long to wait before the notification can be discarded by APNs. Differs from --expiry in that --expiry requires an actual UNIX time stamp. If both flags are provided, expiry takes precedence.")
 	flag.IntVar(&apnOptions.repeat, "repeat", 0, "Number of times this notification should be sent.")
 
 	payloadOptions = &PayloadOptions{}
