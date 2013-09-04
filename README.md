@@ -1,51 +1,50 @@
-Go APNS Package
+Go APNs Package
 ===============
 
-This Go package implements the Apple Push Notification System (APNS) binary 
+This Go package implements the Apple Push Notification System (APNs) binary 
 interface. 
-
-Introduction
-------------
-
-This package aims to implement a light abstraction of the APNS binary interface 
-for the Go programming language. The following are the design goals of this 
-package:
-
-1. Provide a minimal implementation necessary to communicate with APNS.
-2. Use common interfaces in Go to allow for flexibility via composition.
 
 Usage
 -----
 
-The various components responsible for the network and data format implement 
-common interfaces such as `io.Writer`, `io.Reader` and `net.Conn`. Sending a 
-push notification involves creating an `apns.Connection` to Apple's server and 
-then writing to it an `apns.Notification`. 
+This package provides simple interfaces for establishing authenticated 
+connections to APNs gateways and sending notifications. The function 
+`apns.DialAPN(...)` returns a `net.Conn` which is authenticated and ready to 
+receive data. Notifications implement the `io.Writer` and `io.Reader` 
+interfaces so that sending a notification is done by having it write to a 
+connection.
 
-    conn, err := apns.Connect(&cert, apns.DISTRIBUTION, false)
-    notification := apns.NewSimpleNotification(token, payload)
-    apns.Send(conn, notification)
-    conn.Close()
+	func main() {
+	    // Load the pem file from the current dir.
+		cert, _ := apns.LoadPemFile("notifyme_cert.pem")
+		conn, _ := apns.DialAPN(&cert, apns.SANDBOX, false)
+		// Use a real APNs token.
+		token, _ := hex.DecodeString("beefca5e")
 
-Comparison with other implementations
--------------------------------------
+		jsonData := make(map[string]interface{})
+		aps := map[string]string{}
+		aps["alert"] = "Hello World!"
+		jsonData["aps"] = aps
+		payload, _ := json.Marshal(jsonData)
 
-There are already several APNS projects written in Go. In contrast to most 
-implementations, this package aims to expose a minimal functionality necessary 
-for APNS communication. For this reason the basic abstraction adds very little 
-on top of the APNS interface and is implemented in a way that allows one to use
-selective parts of the package. For example, because a Notification writes to
-an io.Writer one may elect to implement their own networking layer but continue 
-to use the Notification implementations provided. 
+		notification := apns.SimpleNotification{
+			TokenLength:   uint16(len(token)),
+			DeviceToken:   token,
+			PayloadLength: uint16(len(payload)),
+			Payload:       payload,
+		}
 
-The following is a list of notable Go implementations of APNS:
+		notification.WriteTo(conn)
+	}
+
+Other Go implementations of APNs:
 
 - [nicolaspaton/goapn](https://github.com/nicolaspaton/goapn)
 - [mugenken/apnsender](https://github.com/mugenken/apnsender)
 - [virushuo/Go-Apns](https://github.com/virushuo/Go-Apns)
 - [uniqush/uniqush-push](https://github.com/uniqush/uniqush-push)
 
-Some non-Go APNS projects:
+Other non-Go APNs projects:
 
 - [notnoop/java-apns](https://github.com/notnoop/java-apns)
 - [jpoz/APNS](https://github.com/jpoz/APNS)
@@ -57,25 +56,9 @@ License
 Distribution and use of this project is governed by the [3-clause] Revised BSD 
 license that can be found in the LICENSE file.
 
-Further Reading
----------------
+Related Info
+------------
 
 - [Local and Push Notification Programming Guide. Mac Developer Library, Apple.](http://developer.apple.com/library/mac/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingWIthAPS/CommunicatingWIthAPS.html)
-- [Apple Push Notification Service. Wikipedia](http://en.wikipedia.org/wiki/Apple_Push_Notification_Service)
 - [Optimizing Connections to the Apple Push Notification Service. Apple.](https://developer.apple.com/news/index.php?id=03212012a)
-- [Nagle's algorithm](http://en.wikipedia.org/wiki/Nagle's_algorithm)
-- [RFC 896 - Congestion Control in IP/TCP Internetworks. IETF.](http://tools.ietf.org/html/rfc896)
-- [Socket-level Programming. Network programming with Go.](http://jan.newmarch.name/go/socket/chapter-socket.html)
-
-iOS (and APNs) reversing:
-
 - [Apple Push Service Protocol. ios-rev tumblr.](http://ios-rev.tumblr.com/post/13032664009/apple-push-service-protocol-ios5-os-x-10-7)
-- [meeee/pushproxy](https://github.com/meeee/pushproxy)
-
-While not about push specifically, the information is relevant:
-
-- [IMessage. IMFreedom Wiki.](http://imfreedom.org/wiki/IMessage)
-- [Activation. The iPhone Wiki.](http://theiphonewiki.com/wiki/Activation)
-- [posixninja/ideviceactivate](https://github.com/posixninja/ideviceactivate)
-- [iOS Data Interception. The Sprawl.](http://www.thesprawl.org/research/ios-data-interception/)
-
