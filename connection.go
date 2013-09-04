@@ -19,6 +19,17 @@ var feedbackHosts = [2]string{
 	"feedback.sandbox.push.apple.com:2196",
 }
 
+// Environment represents an APNs production or sandbox environment
+// configuration for connections.
+//
+// From the Local and Push Notification Programming Guide:
+//
+// The binary interface of the production environment is available
+// through gateway.push.apple.com, port 2195; the binary interface of
+// the sandbox (development) environment is available through
+// gateway.sandbox.push.apple.com, port 2195. You may establish
+// multiple, parallel connections to the same gateway or to multiple
+// gateway instances.
 type Environment int8
 
 const (
@@ -26,10 +37,10 @@ const (
 	SANDBOX      Environment = iota
 )
 
-// DialAPNS will create a TCP connection to Apple's APNs server using the 
-// certificate provided. The delay parameter tells the network stack to use 
-// Nagle's algorithm to batch data in TCP packets.
-func DialAPNS(cer *tls.Certificate, env Environment, delay bool) (net.Conn, error) {
+// DialAPN will create a TCP connection to Apple's APNs server using
+// the certificate provided. The delay parameter tells the network
+// stack to use Nagle's algorithm to batch data in TCP packets.
+func DialAPN(cer *tls.Certificate, env Environment, delay bool) (net.Conn, error) {
 	return Dial(cer, pushHosts[env], delay)
 }
 
@@ -39,6 +50,8 @@ func DialFeedback(cer *tls.Certificate, env Environment) (net.Conn, error) {
 }
 
 // Dial will connect to an APNs server provided in the host parameter.
+// Unless you plan on using a non-standard APNs server (like a mock
+// server) then it's preferable to use DialAPN or DialFeedback.
 func Dial(cer *tls.Certificate, host string, delay bool) (net.Conn, error) {
 	raddr, err := net.ResolveTCPAddr("tcp", host)
 	if err != nil {
@@ -64,7 +77,6 @@ func Dial(cer *tls.Certificate, host string, delay bool) (net.Conn, error) {
 		return tcpconn, nil
 	}
 
-	// Process the x.509 certificate
 	conf := &tls.Config{
 		Certificates: []tls.Certificate{*cer},
 	}
