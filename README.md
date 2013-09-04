@@ -66,3 +66,16 @@ Further Reading
 - [Nagle's algorithm](http://en.wikipedia.org/wiki/Nagle's_algorithm)
 - [RFC 896 - Congestion Control in IP/TCP Internetworks. IETF.](http://tools.ietf.org/html/rfc896)
 - [Socket-level Programming. Network programming with Go.](http://jan.newmarch.name/go/socket/chapter-socket.html)
+
+iOS (and APNs) reversing:
+
+- [Apple Push Service Protocol. ios-rev tumblr.](http://ios-rev.tumblr.com/post/13032664009/apple-push-service-protocol-ios5-os-x-10-7)
+- [meeee/pushproxy](https://github.com/meeee/pushproxy)
+
+While not about push specifically, the information is relevant:
+
+- [IMessage. IMFreedom Wiki.](http://imfreedom.org/wiki/IMessage)
+- [Activation. The iPhone Wiki.](http://theiphonewiki.com/wiki/Activation)
+- [posixninja/ideviceactivate](https://github.com/posixninja/ideviceactivate)
+- [iOS Data Interception. The Sprawl.](http://www.thesprawl.org/research/ios-data-interception/)
+
