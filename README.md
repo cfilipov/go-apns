@@ -50,6 +50,19 @@ Other non-Go APNs projects:
 - [jpoz/APNS](https://github.com/jpoz/APNS)
 - [simonwhitaker/PyAPNs](https://github.com/simonwhitaker/PyAPNs)
 
+apnsend
+-------
+
+The apnsend utility is a command line tool which uses the apns package for 
+sending push notifications.
+
+apnserver
+---------
+
+The apnserver utility will respond to the APNs protocol with mock data. The 
+server can be configured to a specific mock failure rate to simulate errors 
+and dropped connections.
+
 License
 -------
 
