@@ -15,17 +15,12 @@ interfaces so that sending a notification is done by having it write to a
 connection.
 
 	func main() {
-	    // Load the pem file from the current dir.
+		// Load the pem file from the current dir.
 		cert, _ := apns.LoadPemFile("notifyme_cert.pem")
 		conn, _ := apns.DialAPN(&cert, apns.SANDBOX, false)
 		// Use a real APNs token.
 		token, _ := hex.DecodeString("beefca5e")
-
-		jsonData := make(map[string]interface{})
-		aps := map[string]string{}
-		aps["alert"] = "Hello World!"
-		jsonData["aps"] = aps
-		payload, _ := json.Marshal(jsonData)
+		payload := []byte(`{"aps":{"alert":"Hello World!"}}`)
 
 		notification := apns.SimpleNotification{
 			TokenLength:   uint16(len(token)),
