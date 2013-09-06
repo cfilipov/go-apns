@@ -90,7 +90,7 @@ func main() {
 	verbosePrintf("%d tokens to send.\n", len(options.Tokens))
 
 	var notification apns.Notification
-	for i := options.Repeat; i >= 0; i-- {
+	for i := options.Repeat; i > 0; i-- {
 		for _, t := range options.Tokens {
 			token, err := hex.DecodeString(t)
 			IfErrExit(err)
@@ -115,15 +115,15 @@ func main() {
 			}
 
 			// Send the notification.
-			verbosePrintf("Sending: %s\n", notification)
+			verbosePrintf("Sending %d of %d: %s\n", (options.Repeat - i + 1), options.Repeat, notification)
 			notification.WriteTo(conn)
 		}
-
-		// Wait for a short time before quitting to give APNs a chance to
-		// return error responses, if any.
-		time.Sleep(5000 * time.Millisecond)
-		return
 	}
+
+	// Wait for a short time before quitting to give APNs a chance to
+	// return error responses, if any.
+	time.Sleep(5000 * time.Millisecond)
+	return
 }
 
 func IfErrExit(err error) {
