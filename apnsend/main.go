@@ -21,11 +21,41 @@ import (
 	"time"
 )
 
-func main() {
-	options := ParseOptions()
+var tokens []string
+var customGateway = flag.String("apn-gateway", "", "A custom APNs gateway (for testing or proxy)")
+var tcpDelay = flag.Bool("tcp-delay", false, "Determines weather to delay TCP packet until it's full")
+var verbose = flag.Bool("v", false, "Verbose output")
+var expiry = flag.Int("expiry", 0, "UNIX date in seconds (UTC) that identifies when the notification can be discarded")
+var repeat = flag.Int("repeat", 1, "Number of times this notification should be sent.")
+var keyFile = flag.String("key", "apns-key.pem", "X.509 private key in pem (Privacy Enhanced Mail) format")
+var cerFile	= flag.String("cer", "apns-cer.pem", "X.509 certificate in pem (Privacy Enhanced Mail) format")
+var pemFile = flag.String("pem", "apns.pem", "X.509 certificate/key pair stored in a pem file")
+var sandbox = flag.Bool("sandbox", false, "Indicates the push notification should use the sandbox environment")
+var badge = flag.String("badge", "", "Badge value to use in payload")
+var sound =	flag.String("sound", "", "Notification sound key")
+var text = flag.String("text", "", "Text to send as an APN alert")
+var ttl = flag.Int("ttl", 0, "Time-to-live, in seconds. Signifies how long to wait before the notification can be discarded by APNs. Differs from --expiry in that --expiry requires an actual UNIX time stamp. If both flags are provided, expiry takes precedence.")
 
+func init() {
+	flag.Parse()
+
+	tokens = make([]string, 0)
+	for _, a := range flag.Args() {
+		tokens = append(tokens, a)
+	}
+
+	flag.Usage = func() {
+		fmt.Println("apnsend - Push notification sending utility for Apple's Push Notification system (APNs)\n")
+		fmt.Fprintf(os.Stderr, "Usage: apnsend [OPTIONS] token... \n")
+		flag.PrintDefaults()
+		fmt.Println("\nTo convert a pkcs#12 (.p12) certificate+key pair to pem, use opensll:")
+		fmt.Println("\topenssl pkcs12 -in CertificateName.p12 -out CertificateName.pem -nodes")
+	}
+}
+
+func main() {
 	// At least one token is required.
-	if len(options.Tokens) == 0 {
+	if len(tokens) == 0 {
 		IfErrExitWithUsagePrompt(errors.New("No notifications to send. You must specify at least one push token."))
 	}
 
@@ -33,10 +63,10 @@ func main() {
 	var err error
 	var cert tls.Certificate
 	switch {
-	case options.PemFile != "":
-		cert, err = apns.LoadPemFile(options.PemFile)
-	case options.CerFile != "" && options.KeyFile != "":
-		cert, err = tls.LoadX509KeyPair(options.CerFile, options.KeyFile)
+	case *pemFile != "":
+		cert, err = apns.LoadPemFile(*pemFile)
+	case *cerFile != "" && *keyFile != "":
+		cert, err = tls.LoadX509KeyPair(*cerFile, *keyFile)
 	}
 
 	IfErrExitWithUsagePrompt(err)
@@ -44,12 +74,12 @@ func main() {
 	// Setup a secure connection to an APNs server.
 	var conn net.Conn
 	switch {
-	case options.Sandbox:
+	case *sandbox:
 		verbosePrintf("Using sandbox environment.\n")
 		conn, err = apns.DialAPN(&cert, apns.SANDBOX, false)
-	case options.CustomGateway != "":
-		verbosePrintf("Using custom gateway: %s\n", options.CustomGateway)
-		conn, err = apns.Dial(&cert, options.CustomGateway, false)
+	case *customGateway != "":
+		verbosePrintf("Using custom gateway: %s\n", *customGateway)
+		conn, err = apns.Dial(&cert, *customGateway, false)
 	default:
 		verbosePrintf("Using production environment.\n")
 		conn, err = apns.DialAPN(&cert, apns.DISTRIBUTION, false)
@@ -70,36 +100,36 @@ func main() {
 	// JSON payload.
 	payload := make(map[string]interface{})
 	aps := map[string]string{}
-	aps["alert"] = options.Text
-	aps["badge"] = options.Badge
-	aps["sound"] = options.Sound
+	aps["alert"] = *text
+	aps["badge"] = *badge
+	aps["sound"] = *sound
 	payload["aps"] = aps
 	jsonPayload, err := json.Marshal(payload)
 	IfErrExit(err)
 
 	// Expiry = Specific DateTime, TTL = Length of Time
-	var expiry uint32
+	var expiryTime uint32
 	switch {
-	case options.Expiry != 0:
-		expiry = uint32(options.Expiry)
-	case options.Ttl != 0:
+	case *expiry != 0:
+		expiryTime = uint32(*expiry)
+	case *ttl != 0:
 		unixTime := uint32(time.Now().Unix())
-		expiry = unixTime + uint32(options.Ttl)
+		expiryTime = unixTime + uint32(*ttl)
 	}
 
-	verbosePrintf("%d tokens to send.\n", len(options.Tokens))
+	verbosePrintf("%d tokens to send.\n", len(tokens))
 
 	var notification apns.Notification
-	for i := options.Repeat; i > 0; i-- {
-		for _, t := range options.Tokens {
+	for i := *repeat; i > 0; i-- {
+		for _, t := range tokens {
 			token, err := hex.DecodeString(t)
 			IfErrExit(err)
 
 			// Expiry is only available in enhanced notifications.
-			if expiry != 0 {
+			if expiryTime != 0 {
 				notification = &apns.EnhancedNotification{
 					Identifier:    1,
-					Expiry:        expiry,
+					Expiry:        expiryTime,
 					TokenLength:   uint16(len(token)),
 					DeviceToken:   token,
 					PayloadLength: uint16(len(jsonPayload)),
@@ -115,7 +145,7 @@ func main() {
 			}
 
 			// Send the notification.
-			verbosePrintf("Sending %d of %d: %s\n", (options.Repeat - i + 1), options.Repeat, notification)
+			verbosePrintf("Sending %d of %d: %s\n", (*repeat - i + 1), *repeat, notification)
 			notification.WriteTo(conn)
 		}
 	}
@@ -142,7 +172,7 @@ func IfErrExitWithUsagePrompt(err error) {
 }
 
 func verbosePrintf(format string, a ...interface{}) (n int, err error) {
-	if verbose {
+	if *verbose {
 		return fmt.Printf(format, a...)
 	}
 	return 0, nil
