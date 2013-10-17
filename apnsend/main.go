@@ -34,6 +34,7 @@ var sandbox = flag.Bool("sandbox", false, "Indicates the push notification shoul
 var badge = flag.String("badge", "", "Badge value to use in payload")
 var sound =	flag.String("sound", "", "Notification sound key")
 var text = flag.String("text", "", "Text to send as an APN alert")
+var payloadStr = flag.String("payload", "", "Raw (JSON) payload to send. This option overrides -text -badge and -sound options.")
 var ttl = flag.Int("ttl", 0, "Time-to-live, in seconds. Signifies how long to wait before the notification can be discarded by APNs. Differs from --expiry in that --expiry requires an actual UNIX time stamp. If both flags are provided, expiry takes precedence.")
 
 func init() {
@@ -97,15 +98,20 @@ func main() {
 		}
 	}()
 
-	// JSON payload.
-	payload := make(map[string]interface{})
-	aps := map[string]string{}
-	aps["alert"] = *text
-	aps["badge"] = *badge
-	aps["sound"] = *sound
-	payload["aps"] = aps
-	jsonPayload, err := json.Marshal(payload)
-	IfErrExit(err)
+	var jsonPayload []byte
+
+	if len(*payloadStr) == 0 {
+		payload := make(map[string]interface{})
+		aps := map[string]string{}
+		aps["alert"] = *text
+		aps["badge"] = *badge
+		aps["sound"] = *sound
+		payload["aps"] = aps
+		jsonPayload, err = json.Marshal(payload)
+		IfErrExit(err)
+	} else {
+		jsonPayload = []byte(*payloadStr)
+	}
 
 	// Expiry = Specific DateTime, TTL = Length of Time
 	var expiryTime uint32
