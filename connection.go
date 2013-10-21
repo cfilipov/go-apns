@@ -24,12 +24,12 @@ var feedbackHosts = [2]string{
 //
 // From the Local and Push Notification Programming Guide:
 //
-// The binary interface of the production environment is available
-// through gateway.push.apple.com, port 2195; the binary interface of
-// the sandbox (development) environment is available through
-// gateway.sandbox.push.apple.com, port 2195. You may establish
-// multiple, parallel connections to the same gateway or to multiple
-// gateway instances.
+// 		The binary interface of the production environment is available
+// 		through gateway.push.apple.com, port 2195; the binary interface of
+// 		the sandbox (development) environment is available through
+// 		gateway.sandbox.push.apple.com, port 2195. You may establish
+// 		multiple, parallel connections to the same gateway or to multiple
+// 		gateway instances.
 type Environment int8
 
 const (

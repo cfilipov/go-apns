@@ -8,6 +8,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"encoding/json"
+	"github.com/cfilipov/apns/format"
 	"io"
 )
 
@@ -15,19 +17,13 @@ import (
 // command that is unknown.
 var UnknwonCommandErr = errors.New("Unknown command ID.")
 
-const (
-	simpleNotificationCMD   uint8 = 0
-	enhancedNotificationCMD uint8 = 1
-	errorResponseCMD        uint8 = 8
-)
-
 // Notification represents a specific set of APNs packets which are
 // used for delivering push notifications.
-type Notification interface {
+type PushNotification interface {
+	PushNotification()
 	ReadFrom(r io.Reader) error
-	Notification()
-	String() string
 	WriteTo(w io.Writer) error
+	String() string
 }
 
 // Packet represents the various data formats that may be encountered
@@ -36,6 +32,30 @@ type Packet interface {
 	ReadFrom(r io.Reader) error
 	String() string
 	WriteTo(w io.Writer) error
+}
+
+func MakeNotification(data []byte) (pn PushNotification) {
+	var notif format.Command
+	json.Unmarshal(data, &notif)
+
+	switch notif.Command {
+	case 0:
+		var n format.SimpleNotification
+		json.Unmarshal([]byte(data), &n)
+		pn = n
+		return
+	case 1:
+		var n format.EnhancedNotification
+		json.Unmarshal([]byte(data), &n)
+		pn = n
+		return
+	case 2:
+		var n format.Notification
+		json.Unmarshal([]byte(data), &n)
+		pn = n
+		return
+	}
+	return
 }
 
 // ReadCommand will read an APNs data format from an input stream and
@@ -47,23 +67,19 @@ func ReadCommand(r io.Reader) (p Packet, err error) {
 		}
 	}()
 
-	var command uint8
-
+	var command int8
 	err = binary.Read(r, binary.BigEndian, &command)
 	if err != nil {
 		return
 	}
 
 	switch command {
-	case simpleNotificationCMD:
-		p = new(SimpleNotification)
-
-	case enhancedNotificationCMD:
-		p = new(EnhancedNotification)
-
-	case errorResponseCMD:
-		p = new(ErrorResponse)
-
+	case format.SimpleNotificationCMD:
+		p = new(format.SimpleNotification)
+	case format.EnhancedNotificationCMD:
+		p = new(format.EnhancedNotification)
+	case format.NotificationErrorCMD:
+		p = new(format.NotificationError)
 	default:
 		err = UnknwonCommandErr
 		return

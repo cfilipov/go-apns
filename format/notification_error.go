@@ -2,27 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package apns
+package format
 
 import (
 	"encoding/binary"
-	"fmt"
+	"encoding/json"
 	"io"
 )
-
-// ErrorResponse implements the APNS error response format.
-//
-// From the Local and Push Notification Programming Guide:
-//
-// If you send a notification and APNs finds the notification
-// malformed or otherwise unintelligible, it returns an error-response
-// packet prior to disconnecting. (If there is no error, APNs doesn't
-// return anything.)
-type ErrorResponse struct {
-	Command    uint8 // = 8
-	Status     uint8
-	Identifier uint32
-}
 
 const (
 	NoErrStatus              uint8 = 0
@@ -37,7 +23,7 @@ const (
 	UnknownStatus            uint8 = 255
 )
 
-var errorResponseCodes = map[uint8]string{
+var ErrorStatusCodes = map[uint8]string{
 	0:   "No errors encountered",
 	1:   "Processing Errors",
 	2:   "Missing Device Token",
@@ -50,54 +36,71 @@ var errorResponseCodes = map[uint8]string{
 	255: "None (Unknown)",
 }
 
+// ErrorResponse implements the APNS error response format.
+//
+// From the Local and Push Notification Programming Guide:
+//
+// 		If you send a notification and APNs finds the notification
+// 		malformed or otherwise unintelligible, it returns an error-response
+// 		packet prior to disconnecting. (If there is no error, APNs doesn't
+// 		return anything.)
+type NotificationError struct {
+	// The packet has a command value of 8.
+	// This field is automatically set.
+	Command int8 // = 8
+
+	// A one-byte status code which identifies the type of error.
+	Status uint8
+
+	// The notification identifier in the error response indicates the last
+	// notification that was successfully sent. Any notifications you sent
+	// after it have been discarded and must be resent. When you receive this
+	// status code, stop using this connection and open a new connection.
+	Identifier int32
+}
+
 // ReadFrom will read an error response from an io.Reader. Note this
 // assumes a command ID has already been read and taken off the
 // stream.
-func (nerr *ErrorResponse) ReadFrom(r io.Reader) error {
+func (nerr NotificationError) ReadFrom(r io.Reader) error {
 	err := binary.Read(r, binary.BigEndian, &nerr.Status)
 	if err != nil {
 		return err
 	}
-
 	err = binary.Read(r, binary.BigEndian, &nerr.Identifier)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 // WriteTo will write the entire error response to an io.Writer.
-func (nerr *ErrorResponse) WriteTo(w io.Writer) error {
+func (nerr NotificationError) WriteTo(w io.Writer) error {
+	// Write Command
 	err := binary.Write(w, binary.BigEndian, nerr.Command)
 	if err != nil {
 		return err
 	}
-
+	// Write Status
 	err = binary.Write(w, binary.BigEndian, nerr.Status)
 	if err != nil {
 		return err
 	}
-
+	// Write Identifier
 	err = binary.Write(w, binary.BigEndian, nerr.Identifier)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-// Error implements the error interface.
-func (nerr *ErrorResponse) Error() string {
+// Implement the error interface.
+func (nerr NotificationError) Error() string {
 	return nerr.String()
 }
 
-func (nerr *ErrorResponse) String() string {
-	format := "[Error Response][\n\tcommand=%v\n" +
-		"\tstatus=%v (%s)\n" +
-		"\tidentifier=%v\n" +
-		"]"
-
-	return fmt.Sprintf(format, nerr.Command, nerr.Status,
-		errorResponseCodes[nerr.Status], nerr.Identifier)
+func (nerr NotificationError) String() string {
+	nerr.Command = NotificationErrorCMD
+	n, _ := json.Marshal(nerr)
+	return string(n)
 }

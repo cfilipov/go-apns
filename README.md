@@ -14,22 +14,29 @@ receive data. Notifications implement the `io.Writer` and `io.Reader`
 interfaces so that sending a notification is done by having it write to a 
 connection.
 
-	func main() {
-		// Load the pem file from the current dir.
-		cert, _ := apns.LoadPemFile("notifyme_cert.pem")
-		conn, _ := apns.DialAPN(&cert, apns.SANDBOX, false)
-		// Use a real APNs token.
-		token, _ := hex.DecodeString("beefca5e")
-		payload := []byte(`{"aps":{"alert":"Hello World!"}}`)
-
-		notification := apns.SimpleNotification{
-			TokenLength:   uint16(len(token)),
-			DeviceToken:   token,
-			PayloadLength: uint16(len(payload)),
-			Payload:       payload,
+	var notif = `
+	{
+		"command": 0,
+		"device-token": "beefca5e",
+		"identifier": 1,
+		"expiry": 0,
+		"priority": 10,
+		"payload": {
+			"aps" : {
+				"content-available": 1,
+	   	    	"alert" : "Hello World",
+	   			"badge" : 42
+			}
 		}
+	}`
 
-		notification.WriteTo(conn)
+	func main() {
+		cert, _ := apns.LoadPemFile("notifyme_cert.pem") // Load the pem file from the current dir.
+		conn, _ := apns.DialAPN(&cert, apns.SANDBOX, false)
+		defer conn.Close()
+
+		n := apns.MakeNotification([]byte(notif))
+		n.WriteTo(conn)
 	}
 
 Other Go implementations of APNs:
@@ -54,6 +61,7 @@ sending push notifications.
 apnserver
 ---------
 
+[note: this is probably broken right now]
 The apnserver utility will respond to the APNs protocol with mock data. The 
 server can be configured to a specific mock failure rate to simulate errors 
 and dropped connections.
