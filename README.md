@@ -16,7 +16,7 @@ connection.
 
 	var notif = `
 	{
-		"command": 0,
+		"command": 2,
 		"device-token": "beefca5e",
 		"identifier": 1,
 		"expiry": 0,
