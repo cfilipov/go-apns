@@ -166,6 +166,9 @@ func main() {
 			if *sound != "" {
 				aps["sound"] = *sound
 			}
+			if *contentAvailable != "" {
+				aps["content-available"] = *contentAvailable
+			}
 			p["aps"] = aps
 			if err != nil {
 				fmt.Printf("\nERROR: %s\n", err)
